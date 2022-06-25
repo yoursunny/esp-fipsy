@@ -13,8 +13,7 @@ Fipsy::FuseTable::computeChecksum() const
 Fipsy::Fipsy(SPIClass& spi)
   : m_spi(spi)
   , m_ss(-1)
-{
-}
+{}
 
 bool
 Fipsy::begin(int8_t sck = -1, int8_t miso = -1, int8_t mosi = -1, int8_t ss = -1)
@@ -38,7 +37,8 @@ Fipsy::Status
 Fipsy::readStatus()
 {
   auto resp = spiTrans<8>({0x3C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
-  return Status{(static_cast<uint32_t>(resp[4]) << 24) | (resp[5] << 16) | (resp[6] << 8) | (resp[7] << 0)};
+  return Status{(static_cast<uint32_t>(resp[4]) << 24) | (resp[5] << 16) | (resp[6] << 8) |
+                (resp[7] << 0)};
 }
 
 void
@@ -80,7 +80,8 @@ void
 Fipsy::readFeatures(uint32_t& featureRow0, uint32_t& featureRow1, uint16_t& feabits)
 {
   // read Feature Row
-  auto resp = spiTrans<12>({0xE7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+  auto resp =
+    spiTrans<12>({0xE7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
   featureRow0 = (resp[4] << 24) | (resp[5] << 16) | (resp[6] << 8) | (resp[7] << 0);
   featureRow1 = (resp[8] << 24) | (resp[9] << 16) | (resp[10] << 8) | (resp[11] << 0);
 
@@ -129,20 +130,17 @@ namespace {
 class JedecParser
 {
 public:
-  bool
-  findStx()
+  bool findStx()
   {
     return input.find('\x02');
   }
 
-  bool
-  skipField()
+  bool skipField()
   {
     return input.find('*');
   }
 
-  char
-  readChar()
+  char readChar()
   {
     char ch;
     do {
@@ -205,7 +203,7 @@ Fipsy::parseJedec(Stream& input, FuseTable& fuseTable)
       }
       case 'L': {
         long addr = input.parseInt();
-        for (bool stop = false; !stop; ) {
+        for (bool stop = false; !stop;) {
           switch (parser.readChar()) {
             case '0':
               fuseTable.reset(addr++);
@@ -227,10 +225,24 @@ Fipsy::parseJedec(Stream& input, FuseTable& fuseTable)
         char ch;
         while ((ch = parser.readChar()) != '*') {
           switch (ch) {
-            case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
               fuseChecksum = (fuseChecksum << 4) + (ch - '0');
               break;
-            case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
+            case 'A':
+            case 'B':
+            case 'C':
+            case 'D':
+            case 'E':
+            case 'F':
               fuseChecksum = (fuseChecksum << 4) + (ch - 'A' + 0x0A);
               break;
             default:

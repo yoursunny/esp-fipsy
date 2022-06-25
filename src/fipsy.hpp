@@ -1,46 +1,38 @@
 #ifndef FIPSY_HPP
 #define FIPSY_HPP
 
-#include <array>
-#include <bitset>
 #include <Arduino.h>
 #include <SPI.h>
+#include <array>
+#include <bitset>
 
-/** \brief Fipsy FPGA programmer.
- */
+/** @brief Fipsy FPGA programmer. */
 class Fipsy
 {
 public:
-  /** \brief Fuse table of MachXO2-256.
-   */
+  /**  @brief Fuse table of MachXO2-256. */
   class FuseTable : public std::bitset<73600>
   {
   public:
-    /** \brief Compute fuse checksum.
-     */
-    uint16_t
-    computeChecksum() const;
+    /**  @brief Compute fuse checksum. */
+    uint16_t computeChecksum() const;
   };
 
-  /** \brief Status register value.
-   */
+  /** @brief Status register value. */
   class Status
   {
   public:
-    bool
-    enabled() const
+    bool enabled() const
     {
       return v & (1 << 9);
     }
 
-    bool
-    busy() const
+    bool busy() const
     {
       return v & (1 << 12);
     }
 
-    bool
-    fail() const
+    bool fail() const
     {
       return v & (1 << 13);
     }
@@ -49,53 +41,53 @@ public:
     uint32_t v;
   };
 
-  /** \brief Constructor.
-   *  \param spi the SPI bus.
+  /**
+   * @brief Constructor.
+   * @param spi the SPI bus.
    */
-  explicit
-  Fipsy(SPIClass& spi);
+  explicit Fipsy(SPIClass& spi);
 
-  /** \brief Detect Fipsy.
-   *  \return Whether expected Device ID is found.
+  /**
+   * @brief Detect Fipsy.
+   * @return Whether expected Device ID is found.
    */
-  bool
-  begin(int8_t sck, int8_t miso, int8_t mosi, int8_t ss);
+  bool begin(int8_t sck, int8_t miso, int8_t mosi, int8_t ss);
 
-  /** \brief Release SPI bus.
-   *  \pre begin()
+  /**
+   * @brief Release SPI bus.
+   * @pre begin()
    */
-  void
-  end();
+  void end();
 
-  /** \brief Read status register.
-   *  \pre begin()
+  /**
+   * @brief Read status register.
+   * @pre begin()
    */
-  Status
-  readStatus();
+  Status readStatus();
 
-  /** \brief Enable offline configuration mode.
-   *  \pre begin()
+  /**
+   * @brief Enable offline configuration mode.
+   * @pre begin()
    */
-  bool
-  enable();
+  bool enable();
 
-  /** \brief Disable configuration mode.
-   *  \pre enable()
+  /**
+   * @brief Disable configuration mode.
+   * @pre enable()
    */
-  void
-  disable();
+  void disable();
 
-  /** \brief Read Feature Row and FEABITS.
-   *  \pre enable()
+  /**
+   * @brief Read Feature Row and FEABITS.
+   * @pre enable()
    */
-  void
-  readFeatures(uint32_t& featureRow0, uint32_t& featureRow1, uint16_t& feabits);
+  void readFeatures(uint32_t& featureRow0, uint32_t& featureRow1, uint16_t& feabits);
 
-  /** \brief Program fuse table.
-   *  \pre enable()
+  /**
+   * @brief Program fuse table.
+   * @pre enable()
    */
-  bool
-  program(const FuseTable& fuseTable);
+  bool program(const FuseTable& fuseTable);
 
   enum class JedecError
   {
@@ -109,18 +101,14 @@ public:
     WRONG_CHECKSUM,
   };
 
-  /** \brief Parse fuse table from JEDEC file.
-   */
-  static JedecError
-  parseJedec(Stream& input, FuseTable& fuseTable);
+  /** @brief Parse fuse table from JEDEC file. */
+  static JedecError parseJedec(Stream& input, FuseTable& fuseTable);
 
 private:
   template<int N>
-  std::array<uint8_t, N>
-  spiTrans(const std::array<uint8_t, N>& req);
+  std::array<uint8_t, N> spiTrans(const std::array<uint8_t, N>& req);
 
-  void
-  waitIdle();
+  void waitIdle();
 
 private:
   SPIClass& m_spi;

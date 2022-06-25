@@ -1,6 +1,6 @@
+#include "fipsy.hpp"
 #include <Streaming.h>
 #include <WiFi.h>
-#include "fipsy.hpp"
 
 const char* WIFI_SSID = "my-ssid";
 const char* WIFI_PASS = "my-pass";

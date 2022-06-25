@@ -15,14 +15,14 @@ GND       | 2
 
 ## Usage
 
-1.  Modify WiFi setting in this sketch, and upload to ESP32.
-2.  Look for the IP address in serial output.
-3.  In Lattice Diamond, compile a JEDEC file for MachXO2-256.
-4.  Execute `nc esp32-ip-address 34779 < filename.jed`.
+1. Modify WiFi setting in this sketch, and upload to ESP32.
+2. Look for the IP address in serial output.
+3. In Lattice Diamond, compile a JEDEC file for MachXO2-256.
+4. Execute `nc esp32-ip-address 34779 < filename.jed`.
 
 Sample interaction:
 
-```
+```shell
 $ nc 192.168.5.58 34779 < 1.jed
 JEDEC OK, fuse checksum: A0A5
 Feature Row: 0 0
