@@ -27,7 +27,7 @@ setup() {
 
 void
 loop() {
-  WiFiClient client = listener.available();
+  auto client = listener.accept();
   if (!client) {
     return;
   }
