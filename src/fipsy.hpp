@@ -105,17 +105,14 @@ private:
 
 private:
   SPIClass& m_spi;
-  int m_ss;
 };
 
 template<int N>
 std::array<uint8_t, N>
 Fipsy::spiTrans(const std::array<uint8_t, N>& req) {
   std::array<uint8_t, N> resp;
-  digitalWrite(m_ss, LOW);
   m_spi.beginTransaction(SPISettings(400000, SPI_MSBFIRST, SPI_MODE0));
-  m_spi.transferBytes(const_cast<uint8_t*>(req.data()), resp.data(), req.size());
-  digitalWrite(m_ss, HIGH);
+  m_spi.transferBytes(req.data(), resp.data(), req.size());
   m_spi.endTransaction();
   return resp;
 }
