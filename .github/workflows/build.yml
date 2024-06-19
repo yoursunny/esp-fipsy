@@ -1,0 +1,25 @@
+name: build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions: {}
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y --no-install-recommends clang-format-15
+      - uses: actions/checkout@v4
+      - name: Check code style
+        run: |
+          mk/format-code.sh
+          git diff --exit-code
+      - uses: arduino/compile-sketches@v1
+        with:
+          fqbn: esp32:esp32:esp32da
+          libraries: |
+            - source-path: ./
+            - name: Streaming
+    timeout-minutes: 30
