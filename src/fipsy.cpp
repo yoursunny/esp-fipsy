@@ -1,8 +1,7 @@
 #include "fipsy.hpp"
 
 uint16_t
-Fipsy::FuseTable::computeChecksum() const
-{
+Fipsy::FuseTable::computeChecksum() const {
   uint16_t c = 0x0000;
   for (size_t i = 0; i < size(); ++i) {
     c += test(i) << (i % 8);
@@ -12,12 +11,10 @@ Fipsy::FuseTable::computeChecksum() const
 
 Fipsy::Fipsy(SPIClass& spi)
   : m_spi(spi)
-  , m_ss(-1)
-{}
+  , m_ss(-1) {}
 
 bool
-Fipsy::begin(int8_t sck = -1, int8_t miso = -1, int8_t mosi = -1, int8_t ss = -1)
-{
+Fipsy::begin(int8_t sck = -1, int8_t miso = -1, int8_t mosi = -1, int8_t ss = -1) {
   m_ss = ss;
   pinMode(ss, OUTPUT);
   m_spi.begin(sck, miso, mosi, ss);
@@ -28,30 +25,26 @@ Fipsy::begin(int8_t sck = -1, int8_t miso = -1, int8_t mosi = -1, int8_t ss = -1
 }
 
 void
-Fipsy::end()
-{
+Fipsy::end() {
   m_spi.end();
 }
 
 Fipsy::Status
-Fipsy::readStatus()
-{
+Fipsy::readStatus() {
   auto resp = spiTrans<8>({0x3C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
   return Status{(static_cast<uint32_t>(resp[4]) << 24) | (resp[5] << 16) | (resp[6] << 8) |
                 (resp[7] << 0)};
 }
 
 void
-Fipsy::waitIdle()
-{
+Fipsy::waitIdle() {
   while (readStatus().busy()) {
     delay(1);
   }
 }
 
 bool
-Fipsy::enable()
-{
+Fipsy::enable() {
   // enable offline configuration
   spiTrans<4>({0xC6, 0x08, 0x00, 0x00});
   waitIdle();
@@ -65,8 +58,7 @@ Fipsy::enable()
 }
 
 void
-Fipsy::disable()
-{
+Fipsy::disable() {
   // disable configuration
   spiTrans<3>({0x26, 0x00, 0x00});
   spiTrans<4>({0xFF, 0xFF, 0xFF, 0xFF});
@@ -77,8 +69,7 @@ Fipsy::disable()
 }
 
 void
-Fipsy::readFeatures(uint32_t& featureRow0, uint32_t& featureRow1, uint16_t& feabits)
-{
+Fipsy::readFeatures(uint32_t& featureRow0, uint32_t& featureRow1, uint16_t& feabits) {
   // read Feature Row
   auto resp =
     spiTrans<12>({0xE7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
@@ -91,8 +82,7 @@ Fipsy::readFeatures(uint32_t& featureRow0, uint32_t& featureRow1, uint16_t& feab
 }
 
 bool
-Fipsy::program(const FuseTable& fuseTable)
-{
+Fipsy::program(const FuseTable& fuseTable) {
   // erase flash
   spiTrans<4>({0x0E, 0x04, 0x00, 0x00});
   waitIdle();
@@ -127,21 +117,17 @@ Fipsy::program(const FuseTable& fuseTable)
 
 namespace {
 
-class JedecParser
-{
+class JedecParser {
 public:
-  bool findStx()
-  {
+  bool findStx() {
     return input.find('\x02');
   }
 
-  bool skipField()
-  {
+  bool skipField() {
     return input.find('*');
   }
 
-  char readChar()
-  {
+  char readChar() {
     char ch;
     do {
       if (input.readBytes(&ch, 1) != 1) {
@@ -158,8 +144,7 @@ public:
 } // anonymous namespace
 
 Fipsy::JedecError
-Fipsy::parseJedec(Stream& input, FuseTable& fuseTable)
-{
+Fipsy::parseJedec(Stream& input, FuseTable& fuseTable) {
   JedecParser parser{input};
 
   bool ok = parser.findStx() && parser.skipField();

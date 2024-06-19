@@ -7,33 +7,27 @@
 #include <bitset>
 
 /** @brief Fipsy FPGA programmer. */
-class Fipsy
-{
+class Fipsy {
 public:
   /**  @brief Fuse table of MachXO2-256. */
-  class FuseTable : public std::bitset<73600>
-  {
+  class FuseTable : public std::bitset<73600> {
   public:
     /**  @brief Compute fuse checksum. */
     uint16_t computeChecksum() const;
   };
 
   /** @brief Status register value. */
-  class Status
-  {
+  class Status {
   public:
-    bool enabled() const
-    {
+    bool enabled() const {
       return v & (1 << 9);
     }
 
-    bool busy() const
-    {
+    bool busy() const {
       return v & (1 << 12);
     }
 
-    bool fail() const
-    {
+    bool fail() const {
       return v & (1 << 13);
     }
 
@@ -89,8 +83,7 @@ public:
    */
   bool program(const FuseTable& fuseTable);
 
-  enum class JedecError
-  {
+  enum class JedecError {
     OK,
     NO_STX,
     NO_ETX,
@@ -117,8 +110,7 @@ private:
 
 template<int N>
 std::array<uint8_t, N>
-Fipsy::spiTrans(const std::array<uint8_t, N>& req)
-{
+Fipsy::spiTrans(const std::array<uint8_t, N>& req) {
   std::array<uint8_t, N> resp;
   digitalWrite(m_ss, LOW);
   m_spi.beginTransaction(SPISettings(400000, SPI_MSBFIRST, SPI_MODE0));

@@ -10,8 +10,7 @@ Fipsy::FuseTable fuseTable;
 WiFiServer listener(34779);
 
 void
-setup()
-{
+setup() {
   Serial.begin(115200);
   if (!fipsy.begin(14, 12, 13, 15)) {
     Serial << "Fipsy not found" << endl;
@@ -27,8 +26,7 @@ setup()
 }
 
 void
-loop()
-{
+loop() {
   WiFiClient client = listener.available();
   if (!client) {
     return;
