@@ -232,6 +232,7 @@ Fipsy::parseJedec(Stream& input, FuseTable& fuseTable) {
               return JedecError::BAD_C;
           }
         }
+        break;
       }
       case '\x03':
         etx = true;
