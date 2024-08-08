@@ -21,7 +21,18 @@ Fipsy::begin(int8_t sck = -1, int8_t miso = -1, int8_t mosi = -1, int8_t ss = -1
 
   auto resp = spiTrans<8>({0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
   uint32_t deviceId = (resp[4] << 24) | (resp[5] << 16) | (resp[6] << 8) | (resp[7] << 0);
-  return deviceId == 0x012B8043;
+  // 0x012B8043 is for MachXO2-256 and 0x012BA043 is MachXO2-1200HC
+  return deviceId == 0x012B8043 || deviceId == 0x012BA043;
+}
+
+uint32_t Fipsy::getID(int8_t sck = -1, int8_t miso = -1, int8_t mosi = -1, int8_t ss = -1) {
+    m_ss = ss;
+    pinMode(ss, OUTPUT);
+    m_spi.begin(sck, miso, mosi, ss);
+
+    auto resp = spiTrans<8>({0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+    uint32_t deviceId = (resp[4] << 24) | (resp[5] << 16) | (resp[6] << 8) | (resp[7] << 0);
+    return deviceId; // Return the Device ID directly
 }
 
 void

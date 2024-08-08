@@ -2,8 +2,8 @@
 #include <Streaming.h>
 #include <WiFi.h>
 
-const char* WIFI_SSID = "my-ssid";
-const char* WIFI_PASS = "my-pass";
+const char* WIFI_SSID = "Sandwiches";
+const char* WIFI_PASS = "123456789m";
 
 Fipsy fipsy(SPI);
 Fipsy::FuseTable fuseTable;
@@ -12,7 +12,19 @@ WiFiServer listener(34779);
 void
 setup() {
   Serial.begin(115200);
-  if (!fipsy.begin(14, 12, 13, 15)) {
+  // Old pinout - 14, 12, 13, 15
+  // New pinout - sck, miso, mosi, ss
+  // 18, 19, 23, 5
+  // 35, 38, 36, 34
+  Serial << "Getting Device ID" << endl;
+  // 0x012B8043 is for MachXO2-256 and 0x012BA043 is MachXO2-1200HC
+  uint32_t deviceID = fipsy.getID(18, 19, 23, 5);
+  Serial << "Device ID: " << endl;
+  Serial.printf("0x%08lx", deviceID);
+  Serial.println();
+  
+
+  if (!fipsy.begin(18, 19, 23, 5)) {
     Serial << "Fipsy not found" << endl;
     return;
   }
