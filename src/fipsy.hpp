@@ -9,11 +9,26 @@
 /** @brief Fipsy FPGA programmer. */
 class Fipsy {
 public:
-  /**  @brief Fuse table of MachXO2-256. */
-  class FuseTable : public std::bitset<73600> {
+  // Base FuseTable class with a fixed size
+  template <size_t N>
+  /**  @brief Fuse table of - get this from the .jed file e.g. QF73600 for MachXO2-256 and QF343936 for MachXO2-1200 */
+  class FuseTable : public std::bitset<N> {
   public:
     /**  @brief Compute fuse checksum. */
     uint16_t computeChecksum() const;
+  };
+
+  class FuseTable256 : public FuseTable<73600> {
+	  public:
+		  /**  @brief Compute fuse checksum. */
+		  uint16_t computeChecksum() const;
+		  bool program(const Fipsy::FuseTable256& fuseTable) const;
+  };
+  class FuseTable1200 : public FuseTable<343936> {
+	  public:
+		  /**  @brief Compute fuse checksum. */
+		  uint16_t computeChecksum() const;
+		  bool program(const Fipsy::FuseTable1200& fuseTable) const;
   };
 
   /** @brief Status register value. */
@@ -87,7 +102,8 @@ public:
    * @brief Program fuse table.
    * @pre enable()
    */
-  bool program(const FuseTable& fuseTable);
+  template <typename T>
+  bool program(T& fuseTable);
 
   enum class JedecError {
     OK,
@@ -101,7 +117,8 @@ public:
   };
 
   /** @brief Parse fuse table from JEDEC file. */
-  static JedecError parseJedec(Stream& input, FuseTable& fuseTable);
+  template <typename T>
+  static JedecError parseJedec(Stream& input, T& fuseTable);
 
 private:
   template<int N>

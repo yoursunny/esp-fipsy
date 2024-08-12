@@ -2,11 +2,12 @@
 #include <Streaming.h>
 #include <WiFi.h>
 
-const char* WIFI_SSID = "Sandwiches";
-const char* WIFI_PASS = "123456789m";
+const char* WIFI_SSID = "my-ssid";
+const char* WIFI_PASS = "my-pass";
 
 Fipsy fipsy(SPI);
-Fipsy::FuseTable fuseTable;
+// Choose either FuseTable1200 or FuseTable256 based on which version of Fipsy you have.
+Fipsy::FuseTable1200 fuseTable;
 WiFiServer listener(34779);
 
 void
@@ -47,6 +48,7 @@ loop() {
   Fipsy::JedecError parseError = Fipsy::parseJedec(client, fuseTable);
   if (parseError != Fipsy::JedecError::OK) {
     client << "JEDEC parse error: " << static_cast<int>(parseError) << endl;
+    client << static_cast<int>(parseError) << endl;
     client.stop();
     return;
   }

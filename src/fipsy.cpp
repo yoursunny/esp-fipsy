@@ -1,7 +1,16 @@
 #include "fipsy.hpp"
 
 uint16_t
-Fipsy::FuseTable::computeChecksum() const {
+Fipsy::FuseTable1200::computeChecksum() const {
+  uint16_t c = 0x0000;
+  for (size_t i = 0; i < size(); ++i) {
+    c += test(i) << (i % 8);
+  }
+  return c;
+}
+
+uint16_t
+Fipsy::FuseTable256::computeChecksum() const {
   uint16_t c = 0x0000;
   for (size_t i = 0; i < size(); ++i) {
     c += test(i) << (i % 8);
@@ -92,8 +101,8 @@ Fipsy::readFeatures(uint32_t& featureRow0, uint32_t& featureRow1, uint16_t& feab
   feabits = (resp2[4] << 8) | (resp2[5] << 0);
 }
 
-bool
-Fipsy::program(const FuseTable& fuseTable) {
+template <typename T>
+bool Fipsy::program(T& fuseTable) {
   // erase flash
   spiTrans<4>({0x0E, 0x04, 0x00, 0x00});
   waitIdle();
@@ -154,8 +163,9 @@ public:
 
 } // anonymous namespace
 
+template <typename T>
 Fipsy::JedecError
-Fipsy::parseJedec(Stream& input, FuseTable& fuseTable) {
+Fipsy::parseJedec(Stream& input, T& fuseTable) {
   JedecParser parser{input};
 
   bool ok = parser.findStx() && parser.skipField();
