@@ -137,9 +137,16 @@ bool Fipsy::program(T& fuseTable) {
 
 // Specialization for Fipsy::FuseTable1200 and Fipsy::FuseTable256
 template <>
-bool Fipsy::program<Fipsy::FuseTable1200>(Fipsy::FuseTable1200& fuseTable){};
+bool Fipsy::program<Fipsy::FuseTable1200>(Fipsy::FuseTable1200& fuseTable){
+	bool result = Fipsy::program(fuseTable);
+    return result;
+}
+
 template <>
-bool Fipsy::program<Fipsy::FuseTable256>(Fipsy::FuseTable256& fuseTable){};
+bool Fipsy::program<Fipsy::FuseTable256>(Fipsy::FuseTable256& fuseTable){
+	bool result = Fipsy::program(fuseTable);
+    return result;
+}
 
 namespace {
 
@@ -282,6 +289,12 @@ Fipsy::parseJedec(Stream& input, T& fuseTable) {
 
 // Specialization for Fipsy::FuseTable1200 and Fipsy::FuseTable256
 template <>
-Fipsy::JedecError Fipsy::parseJedec<Fipsy::FuseTable1200>(Stream& input, Fipsy::FuseTable1200& fuseTable) {};
+Fipsy::JedecError Fipsy::parseJedec<Fipsy::FuseTable1200>(Stream& input, Fipsy::FuseTable1200& fuseTable) {
+  Fipsy::JedecError parseError = Fipsy::parseJedec(input, fuseTable);
+  return parseError;
+}
 template <>
-Fipsy::JedecError Fipsy::parseJedec<Fipsy::FuseTable256>(Stream& input, Fipsy::FuseTable256& fuseTable) {};
+Fipsy::JedecError Fipsy::parseJedec<Fipsy::FuseTable256>(Stream& input, Fipsy::FuseTable256& fuseTable) {
+  Fipsy::JedecError parseError = Fipsy::parseJedec(input, fuseTable);
+  return parseError;
+}
