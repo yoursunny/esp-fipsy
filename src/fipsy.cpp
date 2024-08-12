@@ -135,6 +135,12 @@ bool Fipsy::program(T& fuseTable) {
   return !readStatus().fail();
 }
 
+// Specialization for Fipsy::FuseTable1200 and Fipsy::FuseTable256
+template <>
+bool Fipsy::program<Fipsy::FuseTable1200>(Fipsy::FuseTable1200& fuseTable){};
+template <>
+bool Fipsy::program<Fipsy::FuseTable256>(Fipsy::FuseTable256& fuseTable){};
+
 namespace {
 
 class JedecParser {
@@ -272,3 +278,10 @@ Fipsy::parseJedec(Stream& input, T& fuseTable) {
   }
   return JedecError::OK;
 }
+
+
+// Specialization for Fipsy::FuseTable1200 and Fipsy::FuseTable256
+template <>
+Fipsy::JedecError Fipsy::parseJedec<Fipsy::FuseTable1200>(Stream& input, Fipsy::FuseTable1200& fuseTable) {};
+template <>
+Fipsy::JedecError Fipsy::parseJedec<Fipsy::FuseTable256>(Stream& input, Fipsy::FuseTable256& fuseTable) {};
