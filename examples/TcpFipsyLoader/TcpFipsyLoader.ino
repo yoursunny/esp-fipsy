@@ -6,8 +6,10 @@ const char* WIFI_SSID = "my-ssid";
 const char* WIFI_PASS = "my-pass";
 
 Fipsy fipsy(SPI);
-// Choose either FuseTable1200 or FuseTable256 based on which version of Fipsy you have.
-Fipsy::FuseTable1200 fuseTable;
+// Choose either Fipsy::FuseTable<343936> for MachX02-1200 or Fipsy::FuseTable<76000> for MachXO2-256. These are the QF values from the .jed file.
+using FipsyClass = Fipsy::FuseTable<343936>;
+FipsyClass fuseTable;
+
 WiFiServer listener(34779);
 
 void
@@ -16,7 +18,6 @@ setup() {
   // Old pinout - 14, 12, 13, 15
   // New pinout - sck, miso, mosi, ss
   // 18, 19, 23, 5
-  // 35, 38, 36, 34
   Serial << "Getting Device ID" << endl;
   // 0x012B8043 is for MachXO2-256 and 0x012BA043 is MachXO2-1200HC
   uint32_t deviceID = fipsy.getID(18, 19, 23, 5);
@@ -45,8 +46,8 @@ loop() {
     return;
   }
 
-  Fipsy::JedecError parseError = Fipsy::parseJedec(client, fuseTable);
-  if (parseError != Fipsy::JedecError::OK) {
+  FipsyClass::JedecError parseError = fuseTable.parseJedec(client);
+  if (parseError !=  FipsyClass::JedecError::OK) {
     client << "JEDEC parse error: " << static_cast<int>(parseError) << endl;
     client << static_cast<int>(parseError) << endl;
     client.stop();
@@ -68,7 +69,7 @@ loop() {
 
   client << "Programming ..." << endl;
   client.flush();
-  if (fipsy.program(fuseTable)) {
+  if (fuseTable.program(fipsy)) {
     client << "Success" << endl;
   } else {
     client << "Failed" << endl;

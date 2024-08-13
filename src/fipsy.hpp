@@ -14,21 +14,197 @@ public:
   /**  @brief Fuse table of - get this from the .jed file e.g. QF73600 for MachXO2-256 and QF343936 for MachXO2-1200 */
   class FuseTable : public std::bitset<N> {
   public:
-    /**  @brief Compute fuse checksum. */
-    uint16_t computeChecksum() const;
-  };
+	enum class JedecError {
+		OK,
+		NO_STX,
+		NO_ETX,
+		BAD_QF,
+		BAD_F,
+		BAD_L,
+		BAD_C,
+		WRONG_CHECKSUM,
+	  };
+	/** @brief Parse fuse table from JEDEC file. */
+	class JedecParser {
+		public:
+		  bool findStx() {
+			return input.find('\x02');
+		  }
 
-  class FuseTable256 : public FuseTable<73600> {
-	  public:
-		  /**  @brief Compute fuse checksum. */
-		  uint16_t computeChecksum() const;
-		  bool program(const Fipsy::FuseTable256& fuseTable) const;
-  };
-  class FuseTable1200 : public FuseTable<343936> {
-	  public:
-		  /**  @brief Compute fuse checksum. */
-		  uint16_t computeChecksum() const;
-		  bool program(const Fipsy::FuseTable1200& fuseTable) const;
+		  bool skipField() {
+			return input.find('*');
+		  }
+
+		  char readChar() {
+			char ch;
+			do {
+			  if (input.readBytes(&ch, 1) != 1) {
+				return 0;
+			  }
+			} while (ch == ' ' || ch == '\r' || ch == '\n');
+			return ch;
+		  }
+
+		public:
+		  Stream& input;
+	};
+	
+    /**  @brief Compute fuse checksum. */
+    uint16_t computeChecksum() const {
+	  uint16_t c = 0x0000;
+	  for (size_t i = 0; i < this->size(); ++i) {
+		c += this->test(i) << (i % 8);
+	  }
+	  return c;
+	};
+	
+
+	JedecError parseJedec(Stream& input) {
+	  JedecParser parser{input};
+
+	  bool ok = parser.findStx() && parser.skipField();
+	  if (!ok) {
+		return JedecError::NO_STX;
+	  }
+
+	  uint16_t fuseChecksum = 0xFFFF;
+
+	  bool etx = false;
+	  while (!etx) {
+		char fieldId = parser.readChar();
+		switch (fieldId) {
+		  case 'Q':
+			if (parser.readChar() == 'F') {
+			  int qf = 0;
+			  char ch;
+			  while ((ch = parser.readChar()) != '*') {
+				qf = qf * 10 + (ch - '0');
+			  }
+			  if (qf != this->size()) {
+				return JedecError::BAD_QF;
+			  }
+			} else {
+			  parser.skipField();
+			}
+			break;
+		  case 'F': {
+			switch (parser.readChar()) {
+			  case '0':
+				this->reset();
+				break;
+			  case '1':
+				this->set();
+				break;
+			  default:
+				return JedecError::BAD_F;
+			}
+			parser.skipField();
+			break;
+		  }
+		  case 'L': {
+			long addr = input.parseInt();
+			for (bool stop = false; !stop;) {
+			  switch (parser.readChar()) {
+				case '0':
+				  this->reset(addr++);
+				  break;
+				case '1':
+				  this->set(addr++);
+				  break;
+				case '*':
+				  stop = true;
+				  break;
+				default:
+				  return JedecError::BAD_L;
+			  }
+			}
+			break;
+		  }
+		  case 'C': {
+			fuseChecksum = 0;
+			char ch;
+			while ((ch = parser.readChar()) != '*') {
+			  switch (ch) {
+				case '0':
+				case '1':
+				case '2':
+				case '3':
+				case '4':
+				case '5':
+				case '6':
+				case '7':
+				case '8':
+				case '9':
+				  fuseChecksum = (fuseChecksum << 4) + (ch - '0');
+				  break;
+				case 'A':
+				case 'B':
+				case 'C':
+				case 'D':
+				case 'E':
+				case 'F':
+				  fuseChecksum = (fuseChecksum << 4) + (ch - 'A' + 0x0A);
+				  break;
+				default:
+				  return JedecError::BAD_C;
+			  }
+			}
+		  }
+		  case '\x03':
+			etx = true;
+			break;
+		  default:
+			if (!parser.skipField()) {
+			  return JedecError::NO_ETX;
+			}
+			break;
+		}
+	  }
+
+	  if (this->computeChecksum() != fuseChecksum) {
+		return JedecError::WRONG_CHECKSUM;
+	  }
+	  return JedecError::OK;
+	};
+
+
+	/**
+	* @brief Program fuse table.
+	* @pre enable()
+	*/
+	bool program(Fipsy fipsy){
+	  // erase flash
+	  fipsy.spiTrans<4>({0x0E, 0x04, 0x00, 0x00});
+	  fipsy.waitIdle();
+	  if (fipsy.readStatus().fail()) {
+		return false;
+	  }
+
+	  // set address to zero
+	  fipsy.spiTrans<4>({0x46, 0x00, 0x00, 0x00});
+	  fipsy.waitIdle();
+
+	  // program pages
+	  for (int i = 0; i < this->size(); i += 128) {
+		std::array<uint8_t, 20> req;
+		req.fill(0x00);
+		req[0] = 0x70;
+		req[3] = 0x01;
+		for (int j = 0; j < 16; ++j) {
+		  for (int k = 0; k < 8; ++k) {
+			req[4 + j] |= this->test(i + j * 8 + k) << (7 - k);
+		  }
+		}
+		fipsy.spiTrans<20>(req);
+		fipsy.waitIdle();
+	  }
+
+	  // program DONE bit
+	  fipsy.spiTrans<4>({0x5E, 0x00, 0x00, 0x00});
+	  fipsy.waitIdle();
+	  return !fipsy.readStatus().fail();
+	}
+
   };
 
   /** @brief Status register value. */
@@ -98,27 +274,7 @@ public:
    */
   void readFeatures(uint32_t& featureRow0, uint32_t& featureRow1, uint16_t& feabits);
 
-  /**
-   * @brief Program fuse table.
-   * @pre enable()
-   */
-  template <typename T>
-  bool program(T& fuseTable);
-
-  enum class JedecError {
-    OK,
-    NO_STX,
-    NO_ETX,
-    BAD_QF,
-    BAD_F,
-    BAD_L,
-    BAD_C,
-    WRONG_CHECKSUM,
-  };
-
-  /** @brief Parse fuse table from JEDEC file. */
-  template <typename T>
-  static JedecError parseJedec(Stream& input, T& fuseTable);
+  
 
 private:
   template<int N>
