@@ -6,7 +6,8 @@ const char* WIFI_SSID = "my-ssid";
 const char* WIFI_PASS = "my-pass";
 
 Fipsy fipsy(SPI);
-// Choose either Fipsy::FuseTable<343936> for MachX02-1200 or Fipsy::FuseTable<76000> for MachXO2-256. These are the QF values from the .jed file.
+// Choose either Fipsy::FuseTable<343936> for MachX02-1200 or Fipsy::FuseTable<73600> for MachXO2-256. These are the QF values from the .jed file.
+// using FipsyClass = Fipsy::FuseTable<73600>;
 using FipsyClass = Fipsy::FuseTable<343936>;
 FipsyClass fuseTable;
 
