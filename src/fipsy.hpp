@@ -1,40 +1,18 @@
 #ifndef FIPSY_HPP
 #define FIPSY_HPP
 
+#include "internal/fusetable.hpp"
+#include "internal/status.hpp"
+
 #include <Arduino.h>
 #include <SPI.h>
 #include <array>
-#include <bitset>
+
+namespace fipsy {
 
 /** @brief Fipsy FPGA programmer. */
 class Fipsy {
 public:
-  /**  @brief Fuse table of MachXO2-256. */
-  class FuseTable : public std::bitset<73600> {
-  public:
-    /**  @brief Compute fuse checksum. */
-    uint16_t computeChecksum() const;
-  };
-
-  /** @brief Status register value. */
-  class Status {
-  public:
-    bool enabled() const {
-      return v & (1 << 9);
-    }
-
-    bool busy() const {
-      return v & (1 << 12);
-    }
-
-    bool fail() const {
-      return v & (1 << 13);
-    }
-
-  public:
-    uint32_t v;
-  };
-
   /**
    * @brief Constructor.
    * @param spi the SPI bus.
@@ -83,20 +61,6 @@ public:
    */
   bool program(const FuseTable& fuseTable);
 
-  enum class JedecError {
-    OK,
-    NO_STX,
-    NO_ETX,
-    BAD_QF,
-    BAD_F,
-    BAD_L,
-    BAD_C,
-    WRONG_CHECKSUM,
-  };
-
-  /** @brief Parse fuse table from JEDEC file. */
-  static JedecError parseJedec(Stream& input, FuseTable& fuseTable);
-
 private:
   template<int N>
   std::array<uint8_t, N> spiTrans(const std::array<uint8_t, N>& req);
@@ -116,5 +80,7 @@ Fipsy::spiTrans(const std::array<uint8_t, N>& req) {
   m_spi.endTransaction();
   return resp;
 }
+
+} // namespace fipsy
 
 #endif // FIPSY_HPP
