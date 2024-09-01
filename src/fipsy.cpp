@@ -7,8 +7,10 @@ Fipsy::Fipsy(SPIClass& spi)
 
 bool
 Fipsy::begin(int8_t sck = -1, int8_t miso = -1, int8_t mosi = -1, int8_t ss = -1) {
+#ifndef EPOXY_DUINO
   m_spi.begin(sck, miso, mosi, ss);
   m_spi.setHwCs(true);
+#endif
 
   auto resp = spiTrans<8>({0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
   uint32_t deviceId = (resp[4] << 24) | (resp[5] << 16) | (resp[6] << 8) | (resp[7] << 0);

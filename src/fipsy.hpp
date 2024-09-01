@@ -75,9 +75,11 @@ template<int N>
 std::array<uint8_t, N>
 Fipsy::spiTrans(const std::array<uint8_t, N>& req) {
   std::array<uint8_t, N> resp;
+#ifndef EPOXY_DUINO
   m_spi.beginTransaction(SPISettings(400000, SPI_MSBFIRST, SPI_MODE0));
   m_spi.transferBytes(req.data(), resp.data(), req.size());
   m_spi.endTransaction();
+#endif
   return resp;
 }
 
