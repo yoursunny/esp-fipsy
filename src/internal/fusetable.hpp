@@ -4,11 +4,12 @@
 #include <Stream.h>
 #include <bitset>
 #include <cstdint>
+#include <vector>
 
 namespace fipsy {
 
-/**  @brief Fuse table of MachXO2-256. */
-class FuseTable : public std::bitset<73600> {
+/**  @brief Fuse table of MachXO2 series. */
+class FuseTable : public std::vector<bool> {
 public:
   /**  @brief Compute fuse checksum. */
   uint16_t computeChecksum() const;

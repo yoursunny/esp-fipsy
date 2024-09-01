@@ -6,7 +6,7 @@ uint16_t
 FuseTable::computeChecksum() const {
   uint16_t c = 0x0000;
   for (size_t i = 0; i < size(); ++i) {
-    c += test(i) << (i % 8);
+    c += static_cast<uint16_t>((*this)[i]) << (i % 8);
   }
   return c;
 }
@@ -65,16 +65,20 @@ parseJedec(Stream& input, FuseTable& fuseTable) {
         }
         break;
       case 'F': {
+        bool value = false;
         switch (parser.readChar()) {
           case '0':
-            fuseTable.reset();
+            value = false;
             break;
           case '1':
-            fuseTable.set();
+            value = true;
             break;
           default:
             return JedecError::BAD_F;
         }
+        size_t size = fuseTable.size();
+        fuseTable.clear();
+        fuseTable.resize(size, value);
         parser.skipField();
         break;
       }
@@ -83,10 +87,10 @@ parseJedec(Stream& input, FuseTable& fuseTable) {
         for (bool stop = false; !stop;) {
           switch (parser.readChar()) {
             case '0':
-              fuseTable.reset(addr++);
+              fuseTable[addr++] = false;
               break;
             case '1':
-              fuseTable.set(addr++);
+              fuseTable[addr++] = true;
               break;
             case '*':
               stop = true;

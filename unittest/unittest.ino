@@ -7,6 +7,7 @@
 test(ParseV1) {
   auto file = fs::EpoxyFS.open("v1-blinky1.jed", "r");
   fipsy::FuseTable fuseTable;
+  fuseTable.resize(73600);
   auto parseError = fipsy::parseJedec(file, fuseTable);
   assertEqual(static_cast<int>(parseError), static_cast<int>(fipsy::JedecError::OK));
   assertEqual(fuseTable.computeChecksum(), 0xA0A5);
