@@ -2,8 +2,104 @@
 
 namespace fipsy {
 
+template<int base, typename I>
+typename std::enable_if<std::is_integral<I>::value, bool>::type
+appendDigit(I& n, char ch) {
+  I digit = base;
+  switch (ch) {
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+      digit = static_cast<I>(ch - '0');
+      break;
+    case 'A':
+    case 'B':
+    case 'C':
+    case 'D':
+    case 'E':
+    case 'F':
+      digit = static_cast<I>(ch - 'A' + 0x0A);
+      break;
+  }
+
+  if (digit < 0 || digit >= base) {
+    return false;
+  }
+
+  n = n * base + digit;
+  return true;
+}
+
 class JedecParser {
 public:
+  JedecParser(Stream& input, JedecContent& output, FuseTable& fuseTable)
+    : input(input)
+    , output(output)
+    , fuseTable(fuseTable) {}
+
+  JedecError parse() {
+    bool ok = findStx() && skipField();
+    if (!ok) {
+      return JedecError::NO_STX;
+    }
+
+#define HANDLE(field)                                                                              \
+  if (!handle##field()) {                                                                          \
+    return JedecError::BAD_##field;                                                                \
+  }
+
+    bool etx = false;
+    while (!etx) {
+      switch (readChar()) {
+        case 'Q':
+          if (readChar() != 'F') {
+            skipField();
+            break;
+          }
+          HANDLE(QF)
+          break;
+        case 'F': {
+          HANDLE(F)
+          break;
+        }
+        case 'L': {
+          HANDLE(L)
+          break;
+        }
+        case 'C': {
+          HANDLE(C)
+          break;
+        }
+        case 'E': {
+          HANDLE(E)
+          break;
+        }
+        case '\x03':
+          etx = true;
+          break;
+        default:
+          if (!skipField()) {
+            return JedecError::NO_ETX;
+          }
+          break;
+      }
+    }
+#undef HANDLE
+
+    if (fuseTable.computeChecksum() != fuseChecksum) {
+      return JedecError::WRONG_CHECKSUM;
+    }
+    return JedecError::OK;
+  }
+
+private:
   bool findStx() {
     return input.find('\x02');
   }
@@ -22,122 +118,100 @@ public:
     return ch;
   }
 
-public:
-  Stream& input;
-};
+  bool handleQF() {
+    qf = 0;
+    qfSize = 0;
+    char ch;
+    while ((ch = readChar()) != '*') {
+      if (!appendDigit<10>(qf, ch)) {
+        return false;
+      }
+      ++qfSize;
+    }
 
-JedecError
-parseJedec(Stream& input, FuseTable& fuseTable) {
-  JedecParser parser{input};
-
-  bool ok = parser.findStx() && parser.skipField();
-  if (!ok) {
-    return JedecError::NO_STX;
+    return qf == static_cast<int>(fuseTable.size());
   }
 
-  uint16_t fuseChecksum = 0xFFFF;
-
-  bool etx = false;
-  while (!etx) {
-    char fieldId = parser.readChar();
-    switch (fieldId) {
-      case 'Q':
-        if (parser.readChar() == 'F') {
-          int qf = 0;
-          char ch;
-          while ((ch = parser.readChar()) != '*') {
-            qf = qf * 10 + (ch - '0');
-          }
-          if (qf != static_cast<int>(fuseTable.size())) {
-            return JedecError::BAD_QF;
-          }
-        } else {
-          parser.skipField();
-        }
-        break;
-      case 'F': {
-        bool value = false;
-        switch (parser.readChar()) {
-          case '0':
-            value = false;
-            break;
-          case '1':
-            value = true;
-            break;
-          default:
-            return JedecError::BAD_F;
-        }
-        size_t size = fuseTable.size();
-        fuseTable.clear();
-        fuseTable.resize(size, value);
-        parser.skipField();
-        break;
-      }
-      case 'L': {
-        long addr = input.parseInt();
-        for (bool stop = false; !stop;) {
-          switch (parser.readChar()) {
-            case '0':
-              fuseTable[addr++] = false;
-              break;
-            case '1':
-              fuseTable[addr++] = true;
-              break;
-            case '*':
-              stop = true;
-              break;
-            default:
-              return JedecError::BAD_L;
-          }
-        }
-        break;
-      }
-      case 'C': {
-        fuseChecksum = 0;
-        char ch;
-        while ((ch = parser.readChar()) != '*') {
-          switch (ch) {
-            case '0':
-            case '1':
-            case '2':
-            case '3':
-            case '4':
-            case '5':
-            case '6':
-            case '7':
-            case '8':
-            case '9':
-              fuseChecksum = (fuseChecksum << 4) + (ch - '0');
-              break;
-            case 'A':
-            case 'B':
-            case 'C':
-            case 'D':
-            case 'E':
-            case 'F':
-              fuseChecksum = (fuseChecksum << 4) + (ch - 'A' + 0x0A);
-              break;
-            default:
-              return JedecError::BAD_C;
-          }
-        }
-        break;
-      }
-      case '\x03':
-        etx = true;
+  bool handleF() {
+    char ch = readChar();
+    switch (ch) {
+      case '0':
+      case '1':
         break;
       default:
-        if (!parser.skipField()) {
-          return JedecError::NO_ETX;
-        }
-        break;
+        return false;
+    }
+    fuseTable.resize(qf, ch - '0');
+    skipField();
+    return true;
+  }
+
+  bool handleL() {
+    int addr = 0;
+    for (int i = 0; i < qfSize; ++i) {
+      if (!appendDigit<10>(addr, readChar())) {
+        return false;
+      }
+    }
+
+    while (true) {
+      char ch = readChar();
+      switch (ch) {
+        case '0':
+        case '1':
+          break;
+        case '*':
+          return true;
+        default:
+          return false;
+      }
+      if (addr >= qf) {
+        return false;
+      }
+      fuseTable[addr++] = ch - '0';
     }
   }
 
-  if (fuseTable.computeChecksum() != fuseChecksum) {
-    return JedecError::WRONG_CHECKSUM;
+  bool handleC() {
+    fuseChecksum = 0;
+    char ch;
+    while ((ch = readChar()) != '*') {
+      if (!appendDigit<16>(fuseChecksum, ch)) {
+        return false;
+      }
+    }
+    return true;
   }
-  return JedecError::OK;
+
+  bool handleE() {
+    for (auto& b : output.features) {
+      b = 0;
+      for (int i = 0; i < 8; ++i) {
+        if (!appendDigit<2>(b, readChar())) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+public:
+  Stream& input;
+  JedecContent& output;
+  FuseTable& fuseTable;
+
+private:
+  int qf = 0;
+  int qfSize = 0;
+  uint16_t fuseChecksum = 0xFFFF;
+};
+
+JedecContent
+parseJedec(Stream& input, FuseTable& fuseTable) {
+  JedecContent output;
+  JedecParser parser(input, output, fuseTable);
+  output.error = parser.parse();
+  return output;
 }
 
 } // namespace fipsy

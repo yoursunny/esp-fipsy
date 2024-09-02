@@ -15,11 +15,23 @@ enum class JedecError {
   BAD_F,
   BAD_L,
   BAD_C,
+  BAD_E,
   WRONG_CHECKSUM,
 };
 
-/** @brief Parse fuse table from JEDEC file. */
-JedecError
+class JedecContent {
+public:
+  explicit operator bool() const {
+    return error == JedecError::OK;
+  }
+
+public:
+  JedecError error = JedecError::NO_STX;
+  Features features;
+};
+
+/** @brief Parse JEDEC file. */
+JedecContent
 parseJedec(Stream& input, FuseTable& fuseTable);
 
 } // namespace fipsy

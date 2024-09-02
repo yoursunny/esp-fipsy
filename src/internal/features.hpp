@@ -17,6 +17,17 @@ public:
     fill(0);
   }
 
+  uint64_t featureRow() const {
+    return (static_cast<uint64_t>(at(0)) << 56) | (static_cast<uint64_t>(at(1)) << 48) |
+           (static_cast<uint64_t>(at(2)) << 40) | (static_cast<uint64_t>(at(3)) << 32) |
+           (static_cast<uint64_t>(at(4)) << 24) | (static_cast<uint64_t>(at(5)) << 16) |
+           (static_cast<uint64_t>(at(6)) << 8) | (static_cast<uint64_t>(at(7)) << 0);
+  }
+
+  uint16_t feabits() const {
+    return (static_cast<uint16_t>(at(8)) << 8) | (static_cast<uint16_t>(at(9)) << 0);
+  }
+
   bool hasSlaveSPI() const {
     return (at(9) & 0x40) != 0;
   }

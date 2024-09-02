@@ -38,25 +38,25 @@ loop() {
     return;
   }
 
-  auto parseError = fipsy::parseJedec(client, fuseTable);
-  if (parseError != fipsy::JedecError::OK) {
-    client.printf("JEDEC parse error %d", static_cast<int>(parseError));
+  auto jc = fipsy::parseJedec(client, fuseTable);
+  if (!jc) {
+    client.printf("JEDEC parse error %d", static_cast<int>(jc.error));
     client.println();
     client.stop();
     return;
   }
-  client.printf("JEDEC OK, fuse checksum %04x", fuseTable.computeChecksum());
-  client.println();
+  client.printf("JEDEC OK, fuse checksum %04" PRIx16 ", features ", fuseTable.computeChecksum());
+  client.println(jc.features);
 
   if (!fpga.enable()) {
-    client.printf("Cannot enable configuration mode, status %08x", fpga.readStatus().v);
+    client.printf("Cannot enable configuration mode, status %08" PRIx32, fpga.readStatus().v);
     client.println();
     client.stop();
     return;
   }
 
   auto features = fpga.readFeatures();
-  client.print("Features: ");
+  client.print("On-chip features ");
   client.println(features);
 
   client.println("Programming ...");
