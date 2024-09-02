@@ -61,17 +61,19 @@ Fipsy::disable() {
   delay(10);
 }
 
-void
-Fipsy::readFeatures(uint32_t& featureRow0, uint32_t& featureRow1, uint16_t& feabits) {
+Features
+Fipsy::readFeatures() {
+  Features result;
+
   // read Feature Row
-  auto resp =
-    spiTrans<12>({0xE7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
-  featureRow0 = (resp[4] << 24) | (resp[5] << 16) | (resp[6] << 8) | (resp[7] << 0);
-  featureRow1 = (resp[8] << 24) | (resp[9] << 16) | (resp[10] << 8) | (resp[11] << 0);
+  auto fr = spiTrans<12>({0xE7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+  memcpy(&result[0], &fr[4], 8);
 
   // read FEABITS
-  auto resp2 = spiTrans<12>({0xFB, 0x00, 0x00, 0x00, 0x00, 0x00});
-  feabits = (resp2[4] << 8) | (resp2[5] << 0);
+  auto fb = spiTrans<12>({0xFB, 0x00, 0x00, 0x00, 0x00, 0x00});
+  memcpy(&result[8], &fb[4], 2);
+
+  return result;
 }
 
 bool

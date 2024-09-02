@@ -1,7 +1,7 @@
 #ifndef FIPSY_HPP
 #define FIPSY_HPP
 
-#include "internal/fusetable.hpp"
+#include "internal/jedec.hpp"
 #include "internal/status.hpp"
 
 #include <Arduino.h>
@@ -53,7 +53,7 @@ public:
    * @brief Read Feature Row and FEABITS.
    * @pre enable()
    */
-  void readFeatures(uint32_t& featureRow0, uint32_t& featureRow1, uint16_t& feabits);
+  Features readFeatures();
 
   /**
    * @brief Program fuse table.
