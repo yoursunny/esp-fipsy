@@ -10,6 +10,19 @@
 
 namespace fipsy {
 
+class ProgramResult {
+public:
+  explicit ProgramResult(int error)
+    : error(error) {}
+
+  explicit operator bool() const {
+    return error == 0;
+  }
+
+public:
+  int error = 0;
+};
+
 /** @brief Fipsy FPGA programmer. */
 class Fipsy {
 public:
@@ -59,13 +72,21 @@ public:
    * @brief Program fuse table.
    * @pre enable()
    */
-  bool program(const FuseTable& fuseTable);
+  ProgramResult program(const FuseTable& fuseTable, const Features& features);
 
 private:
   template<int N>
   std::array<uint8_t, N> spiTrans(const std::array<uint8_t, N>& req);
 
   void waitIdle();
+
+  void erase(uint8_t y);
+
+  void cleanup();
+
+  void programPages(uint8_t command, const std::vector<bool>& input);
+
+  bool programFeatures(const Features& features);
 
 private:
   SPIClass& m_spi;
@@ -74,13 +95,13 @@ private:
 template<int N>
 std::array<uint8_t, N>
 Fipsy::spiTrans(const std::array<uint8_t, N>& req) {
-  std::array<uint8_t, N> resp;
+  std::array<uint8_t, N> rsp;
 #ifndef EPOXY_DUINO
   m_spi.beginTransaction(SPISettings(400000, SPI_MSBFIRST, SPI_MODE0));
-  m_spi.transferBytes(req.data(), resp.data(), req.size());
+  m_spi.transferBytes(req.data(), rsp.data(), req.size());
   m_spi.endTransaction();
 #endif
-  return resp;
+  return rsp;
 }
 
 } // namespace fipsy

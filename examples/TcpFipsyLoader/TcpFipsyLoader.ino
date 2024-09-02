@@ -55,15 +55,16 @@ loop() {
     return;
   }
 
-  auto features = fpga.readFeatures();
   client.print("On-chip features ");
-  client.println(features);
+  client.println(fpga.readFeatures());
 
   client.println("Programming ...");
-  if (fpga.program(fuseTable)) {
+  auto result = fpga.program(fuseTable, jc.features);
+  if (result) {
     client.println("Success");
   } else {
-    client.println("Failed");
+    client.print("Failed ");
+    client.println(result.error);
   }
 
   fpga.disable();

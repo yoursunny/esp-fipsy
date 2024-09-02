@@ -29,7 +29,7 @@ public:
   }
 
   bool hasSlaveSPI() const {
-    return (at(9) & 0x40) != 0;
+    return (at(9) & 0x40) == 0;
   }
 
   size_t printTo(Print& p) const override {
