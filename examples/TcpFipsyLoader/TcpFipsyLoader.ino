@@ -11,12 +11,25 @@ WiFiServer listener(34779);
 void
 setup() {
   Serial.begin(115200);
-  if (!fpga.begin(14, 12, 13, 15)) {
+
+  // Choose either fuseTable.resize(343936) for MachX02-1200 or fuseTable.resize(73600) for MachXO2-256.
+  // These are the QF values from the .jed file.
+  // fuseTable.resize(73600);
+  fuseTable.resize(343936);
+
+  // Known alternate pinouts for SPI include:
+  // 18, 19, 23, 5
+  // 14, 12, 13, 15
+  // These pins are sck, miso, mosi, ss
+  if (!fpga.begin(18, 19, 23, 5)) {
     Serial.println("Fipsy not found");
     return;
+  } else {
+    uint32_t deviceID = fpga.getID();
+    Serial.print("Device ID: ");
+    Serial.printf("0x%08lx", deviceID);
+    Serial.println();
   }
-
-  fuseTable.resize(73600);
 
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
