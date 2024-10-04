@@ -71,8 +71,6 @@ Fipsy::readFeatures() {
   return result;
 }
 
-<<<<<<< HEAD
-=======
 void
 Fipsy::erase(uint8_t y) {
   spiTrans<4>({0x0E, y, 0x00, 0x00});
@@ -175,4 +173,3 @@ Fipsy::programFeatures(const Features& features) {
 }
 
 } // namespace fipsy
->>>>>>> sunny/develop
