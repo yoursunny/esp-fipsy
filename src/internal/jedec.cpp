@@ -150,7 +150,7 @@ private:
   bool handleL() {
     printf("Doing function: HandleL\n");
     int addr = 0;
-    while(true) {
+    while (true) {
       char ch;
       // readChar() does not let us capture terminal strings, so doing it manually here
       // this fixes a bug where readChar() denpends on sizeQf length - which is NOT related
@@ -159,13 +159,16 @@ private:
 
       // printf("Char here is [%c] booleab pass: %B\n",ch, ch=='0');
 
-      if (!(ch >= '0' && ch <= '9')) {break;}
+      if (!(ch >= '0' && ch <= '9')) {
+        break;
+      }
+
       if (!appendDigit<10>(addr, ch)) {
         return false;
       }
     }
 
-    printf("Starting addr: %d\n",addr); 
+    printf("Starting addr: %d\n", addr);
 
     while (true) {
       char ch = readChar();

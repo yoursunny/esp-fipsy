@@ -37,7 +37,7 @@ public:
    * @return Whether expected Device ID is found.
    */
   bool begin(int8_t sck, int8_t miso, int8_t mosi, int8_t ss);
-  
+
   /**
    * @brief Detect Fipsy device ID.
    * @return Return any Device ID found.
