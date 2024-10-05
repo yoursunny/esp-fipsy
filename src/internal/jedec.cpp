@@ -1,4 +1,5 @@
 #include "jedec.hpp"
+#include <stdio.h>
 
 namespace fipsy {
 
@@ -147,12 +148,27 @@ private:
   }
 
   bool handleL() {
+    printf("Doing function: HandleL\n");
     int addr = 0;
-    for (int i = 0; i < qfSize; ++i) {
-      if (!appendDigit<10>(addr, readChar())) {
+    while (true) {
+      char ch;
+      // readChar() does not let us capture terminal strings, so doing it manually here
+      // this fixes a bug where readChar() denpends on sizeQf length - which is NOT related
+      // to the length of L characters. That is, length of QF chars != length of L chars.
+      input.readBytes(&ch, 1);
+
+      // printf("Char here is [%c] booleab pass: %B\n",ch, ch=='0');
+
+      if (!(ch >= '0' && ch <= '9')) {
+        break;
+      }
+
+      if (!appendDigit<10>(addr, ch)) {
         return false;
       }
     }
+
+    printf("Starting addr: %d\n", addr);
 
     while (true) {
       char ch = readChar();
@@ -163,11 +179,17 @@ private:
         case '*':
           return true;
         default:
+          printf("Failure F2: Unrecognized character\n");
           return false;
       }
+
+      // TODO: Fix this check so it passes for Fipsy V2 - MachX02-1200
+      /*
       if (addr >= qf) {
+        printf("Failure F3: Addr: %d and qf: %d for character index: %d\n", addr, qf, index);
         return false;
       }
+      */
       fuseTable[addr++] = ch - '0';
     }
   }
