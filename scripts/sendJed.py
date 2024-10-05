@@ -39,9 +39,8 @@ def client(ip, port, filename):
         raise ValueError("File is empty.")
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    print("Before connect")
     client_socket.connect((ip, port))
-    print("After connect")
+    print("Device connection initiated")
 
     with open(filename, 'rb') as file:
         content = file.read()
