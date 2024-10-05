@@ -1,41 +1,45 @@
 #include "fipsy.hpp"
-#include <Streaming.h>
 #include <WiFi.h>
 
 const char* WIFI_SSID = "my-ssid";
 const char* WIFI_PASS = "my-pass";
 
-Fipsy fipsy(SPI);
-// Choose either Fipsy::FuseTable<343936> for MachX02-1200 or Fipsy::FuseTable<73600> for MachXO2-256. These are the QF values from the .jed file.
-// using FipsyClass = Fipsy::FuseTable<73600>;
-using FipsyClass = Fipsy::FuseTable<343936>;
-FipsyClass fuseTable;
-
+fipsy::Fipsy fpga(SPI);
+fipsy::FuseTable fuseTable;
 WiFiServer listener(34779);
 
 void
 setup() {
   Serial.begin(115200);
-  // Old pinout - 14, 12, 13, 15
-  // New pinout - sck, miso, mosi, ss
-  // 18, 19, 23, 5
-  Serial << "Getting Device ID" << endl;
-  // 0x012B8043 is for MachXO2-256 and 0x012BA043 is MachXO2-1200HC
-  uint32_t deviceID = fipsy.getID(18, 19, 23, 5);
-  Serial << "Device ID: " << endl;
-  Serial.printf("0x%08lx", deviceID);
-  Serial.println();
-  
 
-  if (!fipsy.begin(18, 19, 23, 5)) {
-    Serial << "Fipsy not found" << endl;
+  // Choose either fuseTable.resize(343936) for MachX02-1200 or fuseTable.resize(73600) for MachXO2-256.
+  // These are the QF values from the .jed file.
+  // fuseTable.resize(73600);
+  fuseTable.resize(343936);
+
+  // Known alternate pinouts for SPI include:
+  // 18, 19, 23, 5
+  // 14, 12, 13, 15
+  // These pins are sck, miso, mosi, ss
+  if (!fpga.begin(18, 19, 23, 5)) {
+    Serial.println("Fipsy not found");
+    return;
+  } else {
+    uint32_t deviceID = fpga.getID();
+    Serial.print("Device ID: ");
+    Serial.printf("0x%08lx", deviceID);
+    Serial.println();
+  }
+
+  WiFi.persistent(false);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  if (WiFi.waitForConnectResult() != WL_CONNECTED) {
+    Serial.printf("WiFi failure %d", static_cast<int>(WiFi.status()));
+    Serial.println();
     return;
   }
-
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (WiFi.status() != WL_CONNECTED) {
-  }
-  Serial << WiFi.localIP() << endl;
+  Serial.println(WiFi.localIP());
 
   listener.begin();
 }
@@ -47,36 +51,35 @@ loop() {
     return;
   }
 
-  FipsyClass::JedecError parseError = fuseTable.parseJedec(client);
-  if (parseError !=  FipsyClass::JedecError::OK) {
-    client << "JEDEC parse error: " << static_cast<int>(parseError) << endl;
-    client << static_cast<int>(parseError) << endl;
+  auto jc = fipsy::parseJedec(client, fuseTable);
+  if (!jc) {
+    client.printf("JEDEC parse error %d", static_cast<int>(jc.error));
+    client.println();
     client.stop();
     return;
   }
-  client << "JEDEC OK, fuse checksum: " << _HEX(fuseTable.computeChecksum()) << endl;
+  client.printf("JEDEC OK, fuse checksum %04" PRIx16 ", features ", fuseTable.computeChecksum());
+  client.println(jc.features);
 
-  if (!fipsy.enable()) {
-    client << "Cannot enable configuration mode, status: " << _HEX(fipsy.readStatus().v) << endl;
+  if (!fpga.enable()) {
+    client.printf("Cannot enable configuration mode, status %08" PRIx32, fpga.readStatus().v);
+    client.println();
     client.stop();
     return;
   }
 
-  uint32_t featureRow0, featureRow1;
-  uint16_t feabits;
-  fipsy.readFeatures(featureRow0, featureRow1, feabits);
-  client << "Feature Row: " << _HEX(featureRow0) << ' ' << _HEX(featureRow1) << endl
-         << "FEABITS: " << _HEX(feabits) << endl;
+  client.print("On-chip features ");
+  client.println(fpga.readFeatures());
 
-  client << "Programming ..." << endl;
-  client.flush();
-  if (fuseTable.program(fipsy)) {
-    client << "Success" << endl;
+  client.println("Programming ...");
+  auto result = fpga.program(fuseTable, jc.features);
+  if (result) {
+    client.println("Success");
   } else {
-    client << "Failed" << endl;
+    client.print("Failed ");
+    client.println(result.error);
   }
 
-  fipsy.disable();
-  client.flush();
+  fpga.disable();
   client.stop();
 }
