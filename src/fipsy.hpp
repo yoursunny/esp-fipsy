@@ -1,40 +1,31 @@
 #ifndef FIPSY_HPP
 #define FIPSY_HPP
 
+#include "internal/jedec.hpp"
+#include "internal/status.hpp"
+
 #include <Arduino.h>
 #include <SPI.h>
 #include <array>
-#include <bitset>
+
+namespace fipsy {
+
+class ProgramResult {
+public:
+  explicit ProgramResult(int error)
+    : error(error) {}
+
+  explicit operator bool() const {
+    return error == 0;
+  }
+
+public:
+  int error = 0;
+};
 
 /** @brief Fipsy FPGA programmer. */
 class Fipsy {
 public:
-  /**  @brief Fuse table of MachXO2-256. */
-  class FuseTable : public std::bitset<73600> {
-  public:
-    /**  @brief Compute fuse checksum. */
-    uint16_t computeChecksum() const;
-  };
-
-  /** @brief Status register value. */
-  class Status {
-  public:
-    bool enabled() const {
-      return v & (1 << 9);
-    }
-
-    bool busy() const {
-      return v & (1 << 12);
-    }
-
-    bool fail() const {
-      return v & (1 << 13);
-    }
-
-  public:
-    uint32_t v;
-  };
-
   /**
    * @brief Constructor.
    * @param spi the SPI bus.
@@ -46,6 +37,12 @@ public:
    * @return Whether expected Device ID is found.
    */
   bool begin(int8_t sck, int8_t miso, int8_t mosi, int8_t ss);
+
+  /**
+   * @brief Detect Fipsy device ID.
+   * @return Return any Device ID found.
+   */
+  uint32_t getID();
 
   /**
    * @brief Release SPI bus.
@@ -75,27 +72,13 @@ public:
    * @brief Read Feature Row and FEABITS.
    * @pre enable()
    */
-  void readFeatures(uint32_t& featureRow0, uint32_t& featureRow1, uint16_t& feabits);
+  Features readFeatures();
 
   /**
    * @brief Program fuse table.
    * @pre enable()
    */
-  bool program(const FuseTable& fuseTable);
-
-  enum class JedecError {
-    OK,
-    NO_STX,
-    NO_ETX,
-    BAD_QF,
-    BAD_F,
-    BAD_L,
-    BAD_C,
-    WRONG_CHECKSUM,
-  };
-
-  /** @brief Parse fuse table from JEDEC file. */
-  static JedecError parseJedec(Stream& input, FuseTable& fuseTable);
+  ProgramResult program(const FuseTable& fuseTable, const Features& features);
 
 private:
   template<int N>
@@ -103,21 +86,30 @@ private:
 
   void waitIdle();
 
+  void erase(uint8_t y);
+
+  void cleanup();
+
+  void programPages(uint8_t command, const std::vector<bool>& input);
+
+  bool programFeatures(const Features& features);
+
 private:
   SPIClass& m_spi;
-  int m_ss;
 };
 
 template<int N>
 std::array<uint8_t, N>
 Fipsy::spiTrans(const std::array<uint8_t, N>& req) {
-  std::array<uint8_t, N> resp;
-  digitalWrite(m_ss, LOW);
+  std::array<uint8_t, N> rsp;
+#ifndef EPOXY_DUINO
   m_spi.beginTransaction(SPISettings(400000, SPI_MSBFIRST, SPI_MODE0));
-  m_spi.transferBytes(const_cast<uint8_t*>(req.data()), resp.data(), req.size());
-  digitalWrite(m_ss, HIGH);
+  m_spi.transferBytes(req.data(), rsp.data(), req.size());
   m_spi.endTransaction();
-  return resp;
+#endif
+  return rsp;
 }
+
+} // namespace fipsy
 
 #endif // FIPSY_HPP

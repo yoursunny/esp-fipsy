@@ -1,27 +1,28 @@
 #include "fipsy.hpp"
 
-uint16_t
-Fipsy::FuseTable::computeChecksum() const {
-  uint16_t c = 0x0000;
-  for (size_t i = 0; i < size(); ++i) {
-    c += test(i) << (i % 8);
-  }
-  return c;
-}
+namespace fipsy {
 
 Fipsy::Fipsy(SPIClass& spi)
-  : m_spi(spi)
-  , m_ss(-1) {}
+  : m_spi(spi) {}
 
 bool
 Fipsy::begin(int8_t sck = -1, int8_t miso = -1, int8_t mosi = -1, int8_t ss = -1) {
-  m_ss = ss;
-  pinMode(ss, OUTPUT);
+#ifndef EPOXY_DUINO
   m_spi.begin(sck, miso, mosi, ss);
+  m_spi.setHwCs(true);
+#endif
 
+  auto rsp = spiTrans<8>({0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+  uint32_t deviceId = (rsp[4] << 24) | (rsp[5] << 16) | (rsp[6] << 8) | (rsp[7] << 0);
+  // 0x012B8043 is for MachXO2-256 and 0x012BA043 is MachXO2-1200HC
+  return deviceId == 0x012B8043 || deviceId == 0x012BA043;
+}
+
+uint32_t
+Fipsy::getID() {
   auto resp = spiTrans<8>({0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
   uint32_t deviceId = (resp[4] << 24) | (resp[5] << 16) | (resp[6] << 8) | (resp[7] << 0);
-  return deviceId == 0x012B8043;
+  return deviceId; // Return the Device ID directly
 }
 
 void
@@ -29,11 +30,11 @@ Fipsy::end() {
   m_spi.end();
 }
 
-Fipsy::Status
+Status
 Fipsy::readStatus() {
-  auto resp = spiTrans<8>({0x3C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
-  return Status{(static_cast<uint32_t>(resp[4]) << 24) | (resp[5] << 16) | (resp[6] << 8) |
-                (resp[7] << 0)};
+  auto rsp = spiTrans<8>({0x3C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+  return Status{(static_cast<uint32_t>(rsp[4]) << 24) | (rsp[5] << 16) | (rsp[6] << 8) |
+                (rsp[7] << 0)};
 }
 
 void
@@ -50,8 +51,7 @@ Fipsy::enable() {
   waitIdle();
 
   // erase SRAM
-  spiTrans<4>({0x0E, 0x01, 0x00, 0x00});
-  waitIdle();
+  erase(0x01);
 
   auto status = readStatus();
   return !status.fail() && status.enabled();
@@ -59,195 +59,125 @@ Fipsy::enable() {
 
 void
 Fipsy::disable() {
-  // disable configuration
-  spiTrans<3>({0x26, 0x00, 0x00});
-  spiTrans<4>({0xFF, 0xFF, 0xFF, 0xFF});
-
   // refresh
   spiTrans<3>({0x79, 0x00, 0x00});
   delay(10);
 }
 
-void
-Fipsy::readFeatures(uint32_t& featureRow0, uint32_t& featureRow1, uint16_t& feabits) {
+Features
+Fipsy::readFeatures() {
+  Features result;
+
   // read Feature Row
-  auto resp =
-    spiTrans<12>({0xE7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
-  featureRow0 = (resp[4] << 24) | (resp[5] << 16) | (resp[6] << 8) | (resp[7] << 0);
-  featureRow1 = (resp[8] << 24) | (resp[9] << 16) | (resp[10] << 8) | (resp[11] << 0);
+  auto fr = spiTrans<12>({0xE7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+  memcpy(&result[0], &fr[4], 8);
 
   // read FEABITS
-  auto resp2 = spiTrans<12>({0xFB, 0x00, 0x00, 0x00, 0x00, 0x00});
-  feabits = (resp2[4] << 8) | (resp2[5] << 0);
+  auto fb = spiTrans<12>({0xFB, 0x00, 0x00, 0x00, 0x00, 0x00});
+  memcpy(&result[8], &fb[4], 2);
+
+  return result;
 }
 
-bool
-Fipsy::program(const FuseTable& fuseTable) {
-  // erase flash
-  spiTrans<4>({0x0E, 0x04, 0x00, 0x00});
+void
+Fipsy::erase(uint8_t y) {
+  spiTrans<4>({0x0E, y, 0x00, 0x00});
   waitIdle();
-  if (readStatus().fail()) {
-    return false;
+}
+
+void
+Fipsy::cleanup() {
+  // erase flash
+  erase(0x0E);
+}
+
+ProgramResult
+Fipsy::program(const FuseTable& fuseTable, const Features& features) {
+  // check features
+  if (!features.hasSlaveSPI()) {
+    return ProgramResult{__LINE__};
   }
 
-  // set address to zero
-  spiTrans<4>({0x46, 0x00, 0x00, 0x00});
-  waitIdle();
+  // erase flash
+  erase(0x0E);
+  if (readStatus().fail()) {
+    return ProgramResult{__LINE__};
+  }
 
-  // program pages
-  for (int i = 0; i < fuseTable.size(); i += 128) {
-    std::array<uint8_t, 20> req;
-    req.fill(0x00);
-    req[0] = 0x70;
-    req[3] = 0x01;
-    for (int j = 0; j < 16; ++j) {
-      for (int k = 0; k < 8; ++k) {
-        req[4 + j] |= fuseTable[i + j * 8 + k] << (7 - k);
-      }
-    }
-    spiTrans<20>(req);
-    waitIdle();
+  // program configuration flash
+  programPages(0x46, fuseTable);
+
+  // program UFM: not implemented
+
+  // program & verify usercode: not implemented
+
+  // write and verify Feature Row
+  if (!programFeatures(features)) {
+    cleanup();
+    return ProgramResult{__LINE__};
   }
 
   // program DONE bit
   spiTrans<4>({0x5E, 0x00, 0x00, 0x00});
   waitIdle();
-  return !readStatus().fail();
+  if (readStatus().fail()) {
+    return ProgramResult{__LINE__};
+  }
+  return ProgramResult{0};
 }
 
-namespace {
-
-class JedecParser {
-public:
-  bool findStx() {
-    return input.find('\x02');
-  }
-
-  bool skipField() {
-    return input.find('*');
-  }
-
-  char readChar() {
-    char ch;
-    do {
-      if (input.readBytes(&ch, 1) != 1) {
-        return 0;
-      }
-    } while (ch == ' ' || ch == '\r' || ch == '\n');
-    return ch;
-  }
-
-public:
-  Stream& input;
-};
-
-} // anonymous namespace
-
-Fipsy::JedecError
-Fipsy::parseJedec(Stream& input, FuseTable& fuseTable) {
-  JedecParser parser{input};
-
-  bool ok = parser.findStx() && parser.skipField();
-  if (!ok) {
-    return JedecError::NO_STX;
-  }
-
-  uint16_t fuseChecksum = 0xFFFF;
-
-  bool etx = false;
-  while (!etx) {
-    char fieldId = parser.readChar();
-    switch (fieldId) {
-      case 'Q':
-        if (parser.readChar() == 'F') {
-          int qf = 0;
-          char ch;
-          while ((ch = parser.readChar()) != '*') {
-            qf = qf * 10 + (ch - '0');
-          }
-          if (qf != fuseTable.size()) {
-            return JedecError::BAD_QF;
-          }
-        } else {
-          parser.skipField();
-        }
-        break;
-      case 'F': {
-        switch (parser.readChar()) {
-          case '0':
-            fuseTable.reset();
-            break;
-          case '1':
-            fuseTable.set();
-            break;
-          default:
-            return JedecError::BAD_F;
-        }
-        parser.skipField();
-        break;
-      }
-      case 'L': {
-        long addr = input.parseInt();
-        for (bool stop = false; !stop;) {
-          switch (parser.readChar()) {
-            case '0':
-              fuseTable.reset(addr++);
-              break;
-            case '1':
-              fuseTable.set(addr++);
-              break;
-            case '*':
-              stop = true;
-              break;
-            default:
-              return JedecError::BAD_L;
-          }
-        }
-        break;
-      }
-      case 'C': {
-        fuseChecksum = 0;
-        char ch;
-        while ((ch = parser.readChar()) != '*') {
-          switch (ch) {
-            case '0':
-            case '1':
-            case '2':
-            case '3':
-            case '4':
-            case '5':
-            case '6':
-            case '7':
-            case '8':
-            case '9':
-              fuseChecksum = (fuseChecksum << 4) + (ch - '0');
-              break;
-            case 'A':
-            case 'B':
-            case 'C':
-            case 'D':
-            case 'E':
-            case 'F':
-              fuseChecksum = (fuseChecksum << 4) + (ch - 'A' + 0x0A);
-              break;
-            default:
-              return JedecError::BAD_C;
-          }
-        }
-      }
-      case '\x03':
-        etx = true;
-        break;
-      default:
-        if (!parser.skipField()) {
-          return JedecError::NO_ETX;
-        }
-        break;
+static inline void
+fillPage(uint8_t* output, const std::vector<bool>& input, size_t i) {
+  for (int j = 0; j < 16; ++j) {
+    for (int k = 0; k < 8; ++k) {
+      output[j] |= input[i + j * 8 + k] << (7 - k);
     }
   }
-
-  if (fuseTable.computeChecksum() != fuseChecksum) {
-    return JedecError::WRONG_CHECKSUM;
-  }
-  return JedecError::OK;
 }
+
+void
+Fipsy::programPages(uint8_t command, const std::vector<bool>& input) {
+  // set address to zero
+  spiTrans<4>({0x46, 0x00, 0x00, 0x00});
+  waitIdle();
+
+  // program pages
+  for (size_t i = 0; i < input.size(); i += 128) {
+    std::array<uint8_t, 20> req;
+    req.fill(0x00);
+    req[0] = 0x70;
+    req[3] = 0x01;
+    fillPage(&req[4], input, i);
+    spiTrans<20>(req);
+    waitIdle();
+  }
+}
+
+bool
+Fipsy::programFeatures(const Features& features) {
+  if (!features.hasSlaveSPI()) {
+    return false;
+  }
+
+  // write Feature Row
+  std::array<uint8_t, 12> fr;
+  fr.fill(0x00);
+  fr[0] = 0xE4;
+  memcpy(&fr[4], &features[0], 8);
+  spiTrans<12>(fr);
+  waitIdle();
+
+  // write FEABITS
+  std::array<uint8_t, 6> fb;
+  fb.fill(0x00);
+  fb[0] = 0xF8;
+  memcpy(&fb[4], &features[8], 2);
+  spiTrans<6>(fb);
+  waitIdle();
+
+  // read Feature Row and FEABITS
+  auto read = readFeatures();
+  return read == features && read.hasSlaveSPI();
+}
+
+} // namespace fipsy
