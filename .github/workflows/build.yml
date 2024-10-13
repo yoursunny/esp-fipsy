@@ -32,10 +32,11 @@ jobs:
           mkdir -p EpoxyDuino AUnit Streaming
           curl -fsLS https://github.com/bxparks/EpoxyDuino/archive/v1.6.0.tar.gz | tar -C EpoxyDuino -xz --strip-components=1
           curl -fsLS https://github.com/bxparks/AUnit/archive/v1.7.1.tar.gz | tar -C AUnit -xz --strip-components=1
-          curl -fsLS https://github.com/janelia-arduino/Streaming/archive/6.1.1.tar.gz | tar -C Streaming -xz --strip-components=1
+          curl -fsLS https://github.com/janelia-arduino/Streaming/archive/6.2.0.tar.gz | tar -C Streaming -xz --strip-components=1
       - uses: actions/checkout@v4
       - name: Run unit tests
         run: |
+          ./download.sh
           make -j4
           ./unittest.out
         working-directory: ./unittest

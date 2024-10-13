@@ -2,6 +2,11 @@
 
 namespace fipsy {
 
+static inline bool
+isWhitespace(char ch) {
+  return ch == ' ' || ch == '\r' || ch == '\n';
+}
+
 template<int base, typename I>
 typename std::enable_if<std::is_integral<I>::value, bool>::type
 appendDigit(I& n, char ch) {
@@ -108,25 +113,23 @@ private:
     return input.find('*');
   }
 
-  char readChar() {
+  char readChar(bool allowWhitespace = false) {
     char ch;
     do {
       if (input.readBytes(&ch, 1) != 1) {
         return 0;
       }
-    } while (ch == ' ' || ch == '\r' || ch == '\n');
+    } while (!allowWhitespace && isWhitespace(ch));
     return ch;
   }
 
   bool handleQF() {
     qf = 0;
-    qfSize = 0;
     char ch;
     while ((ch = readChar()) != '*') {
       if (!appendDigit<10>(qf, ch)) {
         return false;
       }
-      ++qfSize;
     }
 
     return qf == static_cast<int>(fuseTable.size());
@@ -148,8 +151,12 @@ private:
 
   bool handleL() {
     int addr = 0;
-    for (int i = 0; i < qfSize; ++i) {
-      if (!appendDigit<10>(addr, readChar())) {
+    while (true) {
+      char ch = readChar(true);
+      if (isWhitespace(ch)) {
+        break;
+      }
+      if (!appendDigit<10>(addr, ch)) {
         return false;
       }
     }
@@ -202,7 +209,6 @@ public:
 
 private:
   int qf = 0;
-  int qfSize = 0;
   uint16_t fuseChecksum = 0xFFFF;
 };
 
