@@ -5,7 +5,7 @@ namespace fipsy {
 Fipsy::Fipsy(SPIClass& spi)
   : m_spi(spi) {}
 
-bool
+const Variant*
 Fipsy::begin(int8_t sck = -1, int8_t miso = -1, int8_t mosi = -1, int8_t ss = -1) {
 #ifndef EPOXY_DUINO
   m_spi.begin(sck, miso, mosi, ss);
@@ -14,7 +14,14 @@ Fipsy::begin(int8_t sck = -1, int8_t miso = -1, int8_t mosi = -1, int8_t ss = -1
 
   auto rsp = spiTrans<8>({0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
   uint32_t deviceId = (rsp[4] << 24) | (rsp[5] << 16) | (rsp[6] << 8) | (rsp[7] << 0);
-  return deviceId == 0x012B8043;
+
+  for (size_t i = 0; i < sizeof(VARIANTS) / sizeof(VARIANTS[0]); ++i) {
+    const Variant* variant = &VARIANTS[i];
+    if (deviceId == variant->deviceId) {
+      return variant;
+    }
+  }
+  return nullptr;
 }
 
 void

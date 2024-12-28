@@ -5,18 +5,24 @@ const char* WIFI_SSID = "my-ssid";
 const char* WIFI_PASS = "my-pass";
 
 fipsy::Fipsy fpga(SPI);
+const fipsy::Variant* variant = nullptr;
 fipsy::FuseTable fuseTable;
 WiFiServer listener(34779);
 
 void
 setup() {
   Serial.begin(115200);
-  if (!fpga.begin(14, 12, 13, 15)) {
+  delay(100);
+  Serial.println();
+
+  if (!(variant = fpga.begin(14, 12, 13, 15))) {
     Serial.println("Fipsy not found");
     return;
   }
+  Serial.print("Found device: ");
+  Serial.println(variant->desc);
 
-  fuseTable.resize(73600);
+  fuseTable.resize(variant->qf);
 
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
@@ -38,10 +44,14 @@ loop() {
     return;
   }
 
+  client.print("Connected device is ");
+  client.println(variant->desc);
+
   auto jc = fipsy::parseJedec(client, fuseTable);
   if (!jc) {
     client.printf("JEDEC parse error %d", static_cast<int>(jc.error));
     client.println();
+    delay(100);
     client.stop();
     return;
   }
@@ -51,6 +61,7 @@ loop() {
   if (!fpga.enable()) {
     client.printf("Cannot enable configuration mode, status %08" PRIx32, fpga.readStatus().v);
     client.println();
+    delay(100);
     client.stop();
     return;
   }
@@ -68,5 +79,6 @@ loop() {
   }
 
   fpga.disable();
+  delay(100);
   client.stop();
 }

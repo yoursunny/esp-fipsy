@@ -3,6 +3,7 @@
 
 #include "internal/jedec.hpp"
 #include "internal/status.hpp"
+#include "internal/variants.hpp"
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -34,9 +35,9 @@ public:
 
   /**
    * @brief Detect Fipsy.
-   * @return Whether expected Device ID is found.
+   * @return Detected variant, or nullptr if not found.
    */
-  bool begin(int8_t sck, int8_t miso, int8_t mosi, int8_t ss);
+  const Variant* begin(int8_t sck, int8_t miso, int8_t mosi, int8_t ss);
 
   /**
    * @brief Release SPI bus.
