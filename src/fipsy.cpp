@@ -2,12 +2,12 @@
 
 namespace fipsy {
 
-Fipsy::Fipsy(SPIClass& spi)
+Fipsy::Fipsy(SPIClassRef spi)
   : m_spi(spi) {}
 
 const Variant*
-Fipsy::begin(int8_t sck = -1, int8_t miso = -1, int8_t mosi = -1, int8_t ss = -1) {
-#ifndef EPOXY_DUINO
+Fipsy::begin(int8_t sck, int8_t miso, int8_t mosi, int8_t ss) {
+#if defined(ARDUINO_ARCH_ESP32)
   m_spi.begin(sck, miso, mosi, ss);
   m_spi.setHwCs(true);
 #endif
@@ -34,6 +34,17 @@ Fipsy::readStatus() {
   auto rsp = spiTrans<8>({0x3C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
   return Status{(static_cast<uint32_t>(rsp[4]) << 24) | (rsp[5] << 16) | (rsp[6] << 8) |
                 (rsp[7] << 0)};
+}
+
+void
+Fipsy::spiTrans(const uint8_t* req, uint8_t* rsp, uint32_t size) {
+#ifdef EPOXY_DUINO
+  std::fill_n(rsp, size, 0x00);
+#else
+  m_spi.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
+  m_spi.transferBytes(req, rsp, size);
+  m_spi.endTransaction();
+#endif
 }
 
 void
@@ -72,7 +83,7 @@ Fipsy::readFeatures() {
   memcpy(&result[0], &fr[4], 8);
 
   // read FEABITS
-  auto fb = spiTrans<12>({0xFB, 0x00, 0x00, 0x00, 0x00, 0x00});
+  auto fb = spiTrans<12>({0xFB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
   memcpy(&result[8], &fb[4], 2);
 
   return result;
@@ -137,7 +148,7 @@ fillPage(uint8_t* output, const std::vector<bool>& input, size_t i) {
 void
 Fipsy::programPages(uint8_t command, const std::vector<bool>& input) {
   // set address to zero
-  spiTrans<4>({0x46, 0x00, 0x00, 0x00});
+  spiTrans<4>({command, 0x00, 0x00, 0x00});
   waitIdle();
 
   // program pages

@@ -11,6 +11,8 @@
 
 namespace fipsy {
 
+using SPIClassRef = std::add_lvalue_reference<decltype(::SPI)>::type;
+
 class ProgramResult {
 public:
   explicit ProgramResult(int error)
@@ -31,7 +33,7 @@ public:
    * @brief Constructor.
    * @param spi the SPI bus.
    */
-  explicit Fipsy(SPIClass& spi);
+  explicit Fipsy(SPIClassRef spi);
 
   /**
    * @brief Detect Fipsy.
@@ -76,8 +78,10 @@ public:
   ProgramResult program(const FuseTable& fuseTable, const Features& features);
 
 private:
-  template<int N>
+  template<uint32_t N>
   std::array<uint8_t, N> spiTrans(const std::array<uint8_t, N>& req);
+
+  void spiTrans(const uint8_t* req, uint8_t* rsp, uint32_t size);
 
   void waitIdle();
 
@@ -90,18 +94,14 @@ private:
   bool programFeatures(const Features& features);
 
 private:
-  SPIClass& m_spi;
+  SPIClassRef m_spi;
 };
 
-template<int N>
+template<uint32_t N>
 std::array<uint8_t, N>
 Fipsy::spiTrans(const std::array<uint8_t, N>& req) {
   std::array<uint8_t, N> rsp;
-#ifndef EPOXY_DUINO
-  m_spi.beginTransaction(SPISettings(400000, SPI_MSBFIRST, SPI_MODE0));
-  m_spi.transferBytes(req.data(), rsp.data(), req.size());
-  m_spi.endTransaction();
-#endif
+  spiTrans(req.data(), rsp.data(), N);
   return rsp;
 }
 
