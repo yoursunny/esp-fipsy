@@ -2,11 +2,6 @@
 
 namespace fipsy {
 
-static inline bool
-isWhitespace(char ch) {
-  return ch == ' ' || ch == '\r' || ch == '\n';
-}
-
 template<int base, typename I>
 typename std::enable_if<std::is_integral<I>::value, bool>::type
 appendDigit(I& n, char ch) {
@@ -119,7 +114,7 @@ private:
       if (input.readBytes(&ch, 1) != 1) {
         return 0;
       }
-    } while (!allowWhitespace && isWhitespace(ch));
+    } while (!allowWhitespace && isspace(ch));
     return ch;
   }
 
@@ -144,7 +139,7 @@ private:
       default:
         return false;
     }
-    fuseTable.resize(qf, ch - '0');
+    fuseTable.assign(qf, ch - '0');
     skipField();
     return true;
   }
@@ -153,7 +148,7 @@ private:
     int addr = 0;
     while (true) {
       char ch = readChar(true);
-      if (isWhitespace(ch)) {
+      if (isspace(ch)) {
         break;
       }
       if (!appendDigit<10>(addr, ch)) {
