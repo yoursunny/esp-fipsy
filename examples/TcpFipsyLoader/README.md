@@ -1,32 +1,31 @@
 # TcpFipsyLoader example
 
-In this example, the ESP32 receives a JEDEC file via TCP, and programs Fipsy once the file has been verified.
+In this example, the microcontroller receives a JEDEC file via TCP, and programs Fipsy once the file has been verified.
 
 ## Wiring
 
-ESP32 pin | Fipsy pin
-----------|----------
-3V3       | 1
-GND       | 2
-14        | 3
-12        | 4
-13        | 5
-15        | 6
+Fipsy pin   | MCU pin
+------------|--------
+**1** +3.3V | 3V3
+**2** GND   | GND
+**3** SCK   | 14
+**4** MISO  | 12
+**5** MOSI  | 13
+**6** SS    | 15
 
 ## Usage
 
-1. Modify WiFi setting in this sketch, and upload to ESP32.
+1. Modify WiFi setting in this sketch, and upload to microcontroller.
 2. Look for the IP address in serial output.
-3. In Lattice Diamond, compile a JEDEC file for MachXO2-256.
-4. Execute `nc esp32-ip-address 34779 < filename.jed`.
+3. Send the JEDEC file with command `nc mcu-ip-address 34779 < filename.jed`.
 
 Sample interaction:
 
 ```shell
-$ nc 192.168.5.58 34779 < 1.jed
-JEDEC OK, fuse checksum: A0A5
-Feature Row: 0 0
-FEABITS: 420
+$ nc 192.168.5.77 34779 < v1-blinky1.jed
+Connected device is FipsyV1
+JEDEC OK, fuse checksum a0a5, features 0000000000000000/0420
+On-chip features 0000000000000000/0420
 Programming ...
 Success
 ```

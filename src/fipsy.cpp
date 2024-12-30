@@ -1,16 +1,16 @@
 #include "fipsy.hpp"
+#include <algorithm>
 
 namespace fipsy {
 
-Fipsy::Fipsy(SPIClassRef spi)
-  : m_spi(spi) {}
+Fipsy::Fipsy(int8_t cs, ::SPIClass* theSPI)
+  : m_spi(cs, 100000, SPI_BITORDER_MSBFIRST, SPI_MODE0, theSPI) {}
 
 const Variant*
-Fipsy::begin(int8_t sck, int8_t miso, int8_t mosi, int8_t ss) {
-#if defined(ARDUINO_ARCH_ESP32)
-  m_spi.begin(sck, miso, mosi, ss);
-  m_spi.setHwCs(true);
-#endif
+Fipsy::begin() {
+  if (!m_spi.begin()) {
+    return nullptr;
+  }
 
   auto rsp = spiTrans<8>({0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
   uint32_t deviceId = (rsp[4] << 24) | (rsp[5] << 16) | (rsp[6] << 8) | (rsp[7] << 0);
@@ -25,8 +25,12 @@ Fipsy::begin(int8_t sck, int8_t miso, int8_t mosi, int8_t ss) {
 }
 
 void
-Fipsy::end() {
-  m_spi.end();
+Fipsy::end() {}
+
+void
+Fipsy::spiTrans(const uint8_t* req, uint8_t* rsp, uint32_t len) {
+  std::copy_n(req, len, rsp);
+  m_spi.write_and_read(rsp, len);
 }
 
 Status
@@ -34,17 +38,6 @@ Fipsy::readStatus() {
   auto rsp = spiTrans<8>({0x3C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
   return Status{(static_cast<uint32_t>(rsp[4]) << 24) | (rsp[5] << 16) | (rsp[6] << 8) |
                 (rsp[7] << 0)};
-}
-
-void
-Fipsy::spiTrans(const uint8_t* req, uint8_t* rsp, uint32_t size) {
-#ifdef EPOXY_DUINO
-  std::fill_n(rsp, size, 0x00);
-#else
-  m_spi.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
-  m_spi.transferBytes(req, rsp, size);
-  m_spi.endTransaction();
-#endif
 }
 
 void

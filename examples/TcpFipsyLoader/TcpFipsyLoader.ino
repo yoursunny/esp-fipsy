@@ -1,10 +1,21 @@
 #include "fipsy.hpp"
 #include <WiFi.h>
 
+// Modify WiFi settings, required.
 const char* WIFI_SSID = "my-ssid";
 const char* WIFI_PASS = "my-pass";
 
-fipsy::Fipsy fpga(SPI);
+// MCU will wait for serial port to become ready before starting.
+// Changing to false allows the MCU to start without attaching to USB.
+const bool WAIT_SERIAL = true;
+
+// Change SPI pins, if necessary.
+const int8_t PIN_SCK = 14;
+const int8_t PIN_MISO = 12;
+const int8_t PIN_MOSI = 13;
+const int8_t PIN_SS = 15;
+
+fipsy::Fipsy fpga(PIN_SS);
 const fipsy::Variant* variant = nullptr;
 fipsy::FuseTable fuseTable;
 WiFiServer listener(34779);
@@ -12,10 +23,21 @@ WiFiServer listener(34779);
 void
 setup() {
   Serial.begin(115200);
+  while (WAIT_SERIAL && !Serial) {
+    delay(1);
+  }
   delay(100);
   Serial.println();
 
-  if (!(variant = fpga.begin(14, 12, 13, 15))) {
+#if defined(ARDUINO_ARCH_ESP32)
+  SPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, -1);
+#elif defined(ARDUINO_ARCH_RP2040)
+  SPI.setSCK(PIN_SCK);
+  SPI.setRX(PIN_MISO);
+  SPI.setTX(PIN_MOSI);
+  SPI.begin();
+#endif
+  if (!(variant = fpga.begin())) {
     Serial.println("Fipsy not found");
     return;
   }

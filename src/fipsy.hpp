@@ -5,13 +5,11 @@
 #include "internal/status.hpp"
 #include "internal/variants.hpp"
 
+#include <Adafruit_SPIDevice.h>
 #include <Arduino.h>
-#include <SPI.h>
 #include <array>
 
 namespace fipsy {
-
-using SPIClassRef = std::add_lvalue_reference<decltype(::SPI)>::type;
 
 class ProgramResult {
 public:
@@ -31,15 +29,16 @@ class Fipsy {
 public:
   /**
    * @brief Constructor.
-   * @param spi the SPI bus.
+   * @param cs SPI Chip Select pin.
+   * @param spi SPI bus.
    */
-  explicit Fipsy(SPIClassRef spi);
+  explicit Fipsy(int8_t cs, ::SPIClass* theSPI = &SPI);
 
   /**
    * @brief Detect Fipsy.
    * @return Detected variant, or nullptr if not found.
    */
-  const Variant* begin(int8_t sck, int8_t miso, int8_t mosi, int8_t ss);
+  const Variant* begin();
 
   /**
    * @brief Release SPI bus.
@@ -81,7 +80,7 @@ private:
   template<uint32_t N>
   std::array<uint8_t, N> spiTrans(const std::array<uint8_t, N>& req);
 
-  void spiTrans(const uint8_t* req, uint8_t* rsp, uint32_t size);
+  void spiTrans(const uint8_t* req, uint8_t* rsp, uint32_t len);
 
   void waitIdle();
 
@@ -94,7 +93,7 @@ private:
   bool programFeatures(const Features& features);
 
 private:
-  SPIClassRef m_spi;
+  Adafruit_SPIDevice m_spi;
 };
 
 template<uint32_t N>

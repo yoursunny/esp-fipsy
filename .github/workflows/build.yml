@@ -21,7 +21,7 @@ jobs:
           fqbn: esp32:esp32:esp32da
           libraries: |
             - source-path: ./
-            - name: Streaming
+            - name: 'Adafruit BusIO'
     timeout-minutes: 30
   unittest:
     runs-on: ubuntu-22.04
@@ -29,10 +29,10 @@ jobs:
       - name: Install dependencies
         run: |
           cd ..
-          mkdir -p EpoxyDuino AUnit Streaming
+          mkdir -p EpoxyDuino AUnit Adafruit_BusIO
           curl -fsLS https://github.com/bxparks/EpoxyDuino/archive/v1.6.0.tar.gz | tar -C EpoxyDuino -xz --strip-components=1
           curl -fsLS https://github.com/bxparks/AUnit/archive/v1.7.1.tar.gz | tar -C AUnit -xz --strip-components=1
-          curl -fsLS https://github.com/janelia-arduino/Streaming/archive/6.2.0.tar.gz | tar -C Streaming -xz --strip-components=1
+          curl -fsLS https://github.com/adafruit/Adafruit_BusIO/archive/1.16.2.tar.gz | tar -C Adafruit_BusIO -xz --strip-components=1
       - uses: actions/checkout@v4
       - name: Run unit tests
         run: |
